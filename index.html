@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DSFP Petition Tracking Map</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #181c27;
+    --border: #252a38;
+    --text: #e8eaf0;
+    --text-muted: #6b7280;
+    --green: #22c55e;
+    --green-dim: rgba(34,197,94,0.15);
+    --amber: #f59e0b;
+    --blue-accent: #3b82f6;
+    --parcel-default: rgba(100, 116, 139, 0.35);
+    --parcel-signed: rgba(34, 197, 94, 0.55);
+    --parcel-border-default: rgba(148, 163, 184, 0.6);
+    --parcel-border-signed: rgba(34, 197, 94, 0.9);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    gap: 16px;
+  }
+
+  .header-left {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+
+  h1 {
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text);
+  }
+
+  .subtitle {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  .stats-bar {
+    display: flex;
+    gap: 24px;
+    align-items: center;
+  }
+
+  .stat {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+  }
+
+  .stat-value {
+    font-family: 'DM Mono', monospace;
+    font-size: 18px;
+    font-weight: 500;
+    line-height: 1;
+  }
+
+  .stat-value.green { color: var(--green); }
+  .stat-value.muted { color: var(--text-muted); }
+
+  .stat-label {
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-top: 2px;
+  }
+
+  .progress-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 160px;
+  }
+
+  .progress-bar {
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: var(--green);
+    border-radius: 2px;
+    transition: width 0.6s ease;
+  }
+
+  .progress-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--text-muted);
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    display: inline-block;
+    margin-right: 6px;
+    transition: background 0.3s;
+  }
+  .status-dot.live { background: var(--green); animation: pulse 2s infinite; }
+  .status-dot.error { background: #ef4444; }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  .status-text {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  #map {
+    flex: 1;
+    width: 100%;
+  }
+
+  /* Leaflet dark overrides */
+  .leaflet-tile-pane { filter: none; }
+  .leaflet-control-attribution { background: rgba(15,17,23,0.85) !important; color: #4b5563 !important; font-size: 9px !important; }
+  .leaflet-control-attribution a { color: #6b7280 !important; }
+  .leaflet-control-zoom a {
+    background: var(--surface) !important;
+    color: var(--text) !important;
+    border-color: var(--border) !important;
+  }
+  .leaflet-control-zoom a:hover { background: var(--border) !important; }
+
+  /* Popup */
+  .leaflet-popup-content-wrapper {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+  }
+  .leaflet-popup-tip { background: var(--surface); }
+  .leaflet-popup-content { margin: 14px 16px; min-width: 200px; }
+
+  .popup-header {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .popup-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 5px;
+    font-size: 12px;
+  }
+
+  .popup-key { color: var(--text-muted); }
+  .popup-val { color: var(--text); font-weight: 500; text-align: right; max-width: 160px; word-break: break-word; }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .badge-yes { background: var(--green-dim); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+  .badge-no { background: rgba(100,116,139,0.15); color: var(--text-muted); border: 1px solid var(--border); }
+
+  .loading-overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    z-index: 9999;
+    transition: opacity 0.4s;
+  }
+  .loading-overlay.hidden { opacity: 0; pointer-events: none; }
+
+  .loader-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .spinner {
+    width: 28px;
+    height: 28px;
+    border: 2px solid var(--border);
+    border-top-color: var(--green);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .error-banner {
+    display: none;
+    position: fixed;
+    top: 60px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(239,68,68,0.15);
+    border: 1px solid rgba(239,68,68,0.4);
+    color: #fca5a5;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    padding: 8px 16px;
+    border-radius: 4px;
+    z-index: 1000;
+    max-width: 500px;
+    text-align: center;
+  }
+
+  .legend {
+    position: absolute;
+    bottom: 24px;
+    left: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 14px;
+    z-index: 800;
+    font-size: 11px;
+  }
+  .legend-title {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 8px;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 5px;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+  .legend-swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+  .swatch-signed { background: var(--parcel-signed); border: 1.5px solid var(--parcel-border-signed); }
+  .swatch-unsigned { background: var(--parcel-default); border: 1.5px solid var(--parcel-border-default); }
+
+  .refresh-btn {
+    background: var(--border);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+  .refresh-btn:hover { background: var(--blue-accent); color: white; border-color: var(--blue-accent); }
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+  <div class="loader-label" id="loadingMsg">Loading parcels…</div>
+</div>
+
+<div class="error-banner" id="errorBanner"></div>
+
+<header>
+  <div class="header-left">
+    <h1>DSFP Petition Tracking</h1>
+    <span class="subtitle">BID Renewal &amp; Expansion</span>
+  </div>
+
+  <div class="stats-bar">
+    <div class="stat">
+      <span class="stat-value green" id="statSigned">—</span>
+      <span class="stat-label">Signed</span>
+    </div>
+    <div class="stat">
+      <span class="stat-value muted" id="statTotal">—</span>
+      <span class="stat-label">Total Parcels</span>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+      <div class="progress-label">
+        <span>Coverage</span>
+        <span id="progressPct">0%</span>
+      </div>
+    </div>
+    <div>
+      <span class="status-dot" id="statusDot"></span>
+      <span class="status-text" id="statusText">Loading…</span>
+    </div>
+    <button class="refresh-btn" onclick="loadData()">↻ Refresh</button>
+  </div>
+</header>
+
+<div id="map"></div>
+
+<div class="legend">
+  <div class="legend-title">Petition Status</div>
+  <div class="legend-item"><div class="legend-swatch swatch-signed"></div>Signed (Yes)</div>
+  <div class="legend-item"><div class="legend-swatch swatch-unsigned"></div>Not yet signed</div>
+</div>
+
+<script>
+// ── CONFIG ──────────────────────────────────────────────────────────────────
+const GEOJSON_URL = "https://raw.githubusercontent.com/downtownsfpartnership/dsfp-petition-map/main/MAP_3_19_Renewal_Expansion.geojson";
+const SHEET_ID    = "1fN4u7AA5QQQNs5p4Zi9N2mJwpF3hhLTYVKlA3Q1k2zY";
+const SHEET_GID   = "1106530303";
+const BLKLOT_GEO  = "blklot";   // property name in GeoJSON
+const BLKLOT_SHT  = "blklot";   // column header in Sheet
+const STATUS_COL  = "Petition Tracking"; // "Yes" or blank
+
+// ── MAP INIT ─────────────────────────────────────────────────────────────────
+const map = L.map('map', { zoomControl: true });
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/">CARTO</a>',
+    subdomains: 'abcd',
+    maxZoom: 20
+  }).addTo(map);
+
+// Labels layer on top
+
+let geojsonLayer = null;
+
+// ── HELPERS ──────────────────────────────────────────────────────────────────
+function setStatus(state, msg) {
+  const dot = document.getElementById('statusDot');
+  const txt = document.getElementById('statusText');
+  dot.className = 'status-dot ' + state;
+  txt.textContent = msg;
+}
+
+function showError(msg) {
+  const el = document.getElementById('errorBanner');
+  el.textContent = msg;
+  el.style.display = 'block';
+  setTimeout(() => el.style.display = 'none', 6000);
+}
+
+function setLoading(msg) {
+  document.getElementById('loadingMsg').textContent = msg;
+  document.getElementById('loadingOverlay').classList.remove('hidden');
+}
+
+function hideLoading() {
+  document.getElementById('loadingOverlay').classList.add('hidden');
+}
+
+function updateStats(signed, total) {
+  document.getElementById('statSigned').textContent = signed.toLocaleString();
+  document.getElementById('statTotal').textContent  = total.toLocaleString();
+  const pct = total > 0 ? Math.round((signed / total) * 100) : 0;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressPct').textContent  = pct + '%';
+}
+
+// ── FETCH SHEET CSV ──────────────────────────────────────────────────────────
+async function fetchSheetData() {
+  const url = `https://docs.google.com/spreadsheets/d/e/2PACX-1vTdt7C19LESnicFSoaMqgBNNNc37yCxxTVxG-hehWBINREGx2Yh8Mgp63bBSDqyYFKh3U0gxOXz8xKV/pub?gid=1106530303&single=true&output=csv`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Sheet fetch failed: ${res.status}`);
+  const text = await res.text();
+
+  const rows = text.trim().split('\n').map(r => {
+    // Handle quoted CSV fields
+    const cols = [];
+    let cur = '', inQ = false;
+    for (let i = 0; i < r.length; i++) {
+      const c = r[i];
+      if (c === '"') { inQ = !inQ; }
+      else if (c === ',' && !inQ) { cols.push(cur.trim()); cur = ''; }
+      else { cur += c; }
+    }
+    cols.push(cur.trim());
+    return cols;
+  });
+
+  if (rows.length < 2) throw new Error('Sheet appears empty');
+
+  const headers = rows[0].map(h => h.replace(/^"|"$/g, '').trim());
+  const blklotIdx  = headers.findIndex(h => h.toLowerCase() === BLKLOT_SHT.toLowerCase());
+  const statusIdx  = headers.findIndex(h => h.toLowerCase() === STATUS_COL.toLowerCase());
+  const addressIdx = headers.findIndex(h => h.toLowerCase().includes('address'));
+
+  if (blklotIdx === -1) throw new Error(`Column "${BLKLOT_SHT}" not found in sheet. Headers: ${headers.join(', ')}`);
+  if (statusIdx === -1) throw new Error(`Column "${STATUS_COL}" not found in sheet. Headers: ${headers.join(', ')}`);
+
+  const lookup = {};
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    const id  = row[blklotIdx]?.replace(/^"|"$/g, '').trim();
+    if (!id) continue;
+    lookup[id] = {
+      status:  (row[statusIdx]  || '').replace(/^"|"$/g, '').trim(),
+      address: addressIdx >= 0 ? (row[addressIdx] || '').replace(/^"|"$/g, '').trim() : ''
+    };
+  }
+  return lookup;
+}
+
+// ── FETCH GEOJSON ────────────────────────────────────────────────────────────
+async function fetchGeoJSON() {
+  const res = await fetch(GEOJSON_URL);
+  if (!res.ok) throw new Error(`GeoJSON fetch failed: ${res.status}`);
+  return res.json();
+}
+
+// ── RENDER MAP ───────────────────────────────────────────────────────────────
+function renderMap(geojson, lookup) {
+  if (geojsonLayer) { map.removeLayer(geojsonLayer); }
+
+  let signed = 0, total = 0;
+
+  geojsonLayer = L.geoJSON(geojson, {
+    style: feature => {
+      const id  = String(feature.properties?.[BLKLOT_GEO] || '').trim();
+      const rec = lookup[id];
+      // Sheet value takes priority; fall back to GeoJSON value
+      const rawStatus = rec?.status || feature.properties?.['Petition Tracking'] || '';
+      const isSigned = rawStatus.trim().toLowerCase() === 'yes';
+      return {
+        fillColor:   isSigned ? '#16a34a' : '#3b82f6',
+        fillOpacity: isSigned ? 0.45 : 0.15,
+        color:       isSigned ? '#16a34a' : '#3b82f6',
+        weight:      isSigned ? 2 : 1,
+        opacity:     isSigned ? 1 : 0.7
+      };
+    },
+    onEachFeature: (feature, layer) => {
+      total++;
+      const id  = String(feature.properties?.[BLKLOT_GEO] || '').trim();
+      const rec = lookup[id];
+      const rawStatus = rec?.status || feature.properties?.['Petition Tracking'] || '';
+      const isSigned = rawStatus.trim().toLowerCase() === 'yes';
+      if (isSigned) signed++;
+
+      const address   = feature.properties?.['Site Address']?.trim() || rec?.address || '—';
+      const ballotVote = feature.properties?.['2026 Ballot Vote'] || '—';
+      const statusBadge = isSigned
+        ? `<span class="badge badge-yes">Yes</span>`
+        : `<span class="badge badge-no">Not signed</span>`;
+
+      layer.bindPopup(`
+        <div class="popup-header">${id}</div>
+        <div class="popup-row"><span class="popup-key">Address</span><span class="popup-val">${address}</span></div>
+        <div class="popup-row"><span class="popup-key">Petition</span><span class="popup-val">${statusBadge}</span></div>
+        <div class="popup-row"><span class="popup-key">2026 Ballot</span><span class="popup-val">${ballotVote}</span></div>
+      `, { maxWidth: 280 });
+
+      layer.on('mouseover', function() {
+        this.setStyle({ fillOpacity: isSigned ? 0.65 : 0.35, weight: 2.5 });
+      });
+      layer.on('mouseout', function() {
+        geojsonLayer.resetStyle(this);
+      });
+    }
+  }).addTo(map);
+
+  map.fitBounds(geojsonLayer.getBounds(), { padding: [24, 24] });
+  updateStats(signed, total);
+
+  const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  setStatus('live', `Updated ${now}`);
+}
+
+// ── MAIN LOAD ─────────────────────────────────────────────────────────────────
+async function loadData() {
+  setStatus('', 'Loading…');
+  setLoading('Loading parcels…');
+
+  try {
+    document.getElementById('loadingMsg').textContent = 'Fetching GeoJSON…';
+    const [geojson, lookup] = await Promise.all([fetchGeoJSON(), fetchSheetData()]);
+    document.getElementById('loadingMsg').textContent = 'Rendering map…';
+    renderMap(geojson, lookup);
+    hideLoading();
+  } catch (err) {
+    hideLoading();
+    setStatus('error', 'Load failed');
+    showError('Error: ' + err.message);
+    console.error(err);
+  }
+}
+
+loadData();
+</script>
+</body>
+</html>
