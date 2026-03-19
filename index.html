@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DSFP · Petition Tracker</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0c10;
+    --panel: #111318;
+    --panel2: #161920;
+    --border: #1e2230;
+    --border2: #252a38;
+    --text: #f0f2f7;
+    --text-mid: #9aa0b4;
+    --text-dim: #4a5068;
+    --green: #00e676;
+    --green-soft: rgba(0,230,118,0.12);
+    --green-mid: rgba(0,230,118,0.45);
+    --amber: #ffab40;
+    --amber-soft: rgba(255,171,64,0.12);
+    --red: #ff5252;
+    --blue: #448aff;
+    --threshold: 30;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'IBM Plex Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: grid;
+    grid-template-rows: auto 1fr;
+    overflow: hidden;
+  }
+
+  /* ── HEADER ── */
+  header {
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 32px;
+    padding: 0 24px;
+    height: 64px;
+    flex-shrink: 0;
+  }
+
+  .brand {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  .brand-name {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 15px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text);
+    line-height: 1;
+  }
+
+  .brand-sub {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  /* ── THRESHOLD TRACKER (center) ── */
+  .threshold-track {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-width: 480px;
+    width: 100%;
+    justify-self: center;
+  }
+
+  .threshold-labels {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+
+  .threshold-pct {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    color: var(--text);
+    line-height: 1;
+  }
+
+  .threshold-pct span {
+    font-size: 11px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 400;
+    color: var(--text-mid);
+    margin-left: 4px;
+  }
+
+  .threshold-remaining {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--text-mid);
+    text-align: right;
+  }
+
+  .threshold-remaining.achieved {
+    color: var(--green);
+  }
+
+  .bar-track {
+    position: relative;
+    height: 8px;
+    background: var(--border2);
+    border-radius: 4px;
+    overflow: visible;
+  }
+
+  .bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    background: linear-gradient(90deg, #00c853, #00e676);
+    transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    z-index: 2;
+  }
+
+  .bar-fill.over {
+    background: linear-gradient(90deg, #00c853, #69f0ae);
+  }
+
+  /* 30% threshold marker line */
+  .bar-marker {
+    position: absolute;
+    top: -3px;
+    bottom: -3px;
+    width: 2px;
+    background: var(--amber);
+    border-radius: 1px;
+    left: 30%;
+    z-index: 3;
+  }
+
+  .bar-marker::after {
+    content: '30%';
+    position: absolute;
+    top: -16px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 8px;
+    color: var(--amber);
+    white-space: nowrap;
+  }
+
+  /* ── RIGHT STATS ── */
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .stat-pill {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    padding: 6px 14px;
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    background: var(--panel2);
+  }
+
+  .stat-num {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 17px;
+    line-height: 1;
+    color: var(--text);
+  }
+
+  .stat-num.green { color: var(--green); }
+  .stat-num.amber { color: var(--amber); }
+
+  .stat-lbl {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 8px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  .divider {
+    width: 1px;
+    height: 32px;
+    background: var(--border);
+  }
+
+  .live-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--text-dim);
+    flex-shrink: 0;
+  }
+  .dot.live { background: var(--green); animation: blink 2.5s ease-in-out infinite; }
+  .dot.err  { background: var(--red); }
+
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  .live-text {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    color: var(--text-dim);
+    white-space: nowrap;
+  }
+
+  .refresh-btn {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--text-mid);
+    background: transparent;
+    border: 1px solid var(--border2);
+    border-radius: 4px;
+    padding: 5px 10px;
+    cursor: pointer;
+    letter-spacing: 0.06em;
+    transition: all 0.18s;
+  }
+  .refresh-btn:hover { border-color: var(--green); color: var(--green); background: var(--green-soft); }
+
+  /* ── MAP CONTAINER ── */
+  #map { width: 100%; height: 100%; }
+
+  /* ── TILE ADJUSTMENTS — keep water/geography visible ── */
+  .leaflet-tile-pane { filter: brightness(0.88) contrast(1.05); }
+
+  .leaflet-control-zoom {
+    border: none !important;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.5) !important;
+  }
+  .leaflet-control-zoom a {
+    background: var(--panel) !important;
+    color: var(--text-mid) !important;
+    border: 1px solid var(--border2) !important;
+    font-size: 16px !important;
+    line-height: 26px !important;
+  }
+  .leaflet-control-zoom a:hover { color: var(--text) !important; background: var(--panel2) !important; }
+  .leaflet-control-attribution {
+    background: rgba(10,12,16,0.75) !important;
+    color: var(--text-dim) !important;
+    font-size: 9px !important;
+    backdrop-filter: blur(4px);
+  }
+  .leaflet-control-attribution a { color: var(--text-dim) !important; }
+
+  /* ── POPUP ── */
+  .leaflet-popup-content-wrapper {
+    background: var(--panel);
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    padding: 0;
+  }
+  .leaflet-popup-tip-container { margin-top: -1px; }
+  .leaflet-popup-tip { background: var(--panel); }
+  .leaflet-popup-content { margin: 0; min-width: 220px; }
+  .leaflet-popup-close-button { color: var(--text-dim) !important; top: 10px !important; right: 10px !important; font-size: 16px !important; }
+
+  .popup-inner { padding: 14px 16px; }
+
+  .popup-blklot {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .popup-address {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-weight: 500;
+    font-size: 13px;
+    color: var(--text);
+    margin-bottom: 10px;
+    line-height: 1.3;
+  }
+
+  .popup-grid {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 5px 12px;
+    font-size: 11px;
+  }
+
+  .pg-key { color: var(--text-dim); font-size: 10px; }
+  .pg-val { color: var(--text-mid); font-weight: 500; }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+  }
+  .badge-yes { background: var(--green-soft); color: var(--green); border: 1px solid rgba(0,230,118,0.25); }
+  .badge-no  { background: rgba(74,80,104,0.2); color: var(--text-dim); border: 1px solid var(--border2); }
+
+  .badge-ballot {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    padding: 1px 6px;
+    border-radius: 3px;
+    letter-spacing: 0.05em;
+  }
+  .ballot-supportive { background: rgba(0,230,118,0.1); color: #69f0ae; border: 1px solid rgba(0,230,118,0.2); }
+  .ballot-not        { background: rgba(255,82,82,0.1); color: #ff8a80; border: 1px solid rgba(255,82,82,0.2); }
+  .ballot-city       { background: rgba(68,138,255,0.1); color: #82b1ff; border: 1px solid rgba(68,138,255,0.2); }
+  .ballot-undecided  { background: rgba(74,80,104,0.2); color: var(--text-dim); border: 1px solid var(--border2); }
+
+  .pct-bar-mini {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+  }
+  .pct-label-mini {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    color: var(--text-dim);
+    margin-bottom: 4px;
+    display: flex;
+    justify-content: space-between;
+  }
+  .pct-track-mini {
+    height: 3px;
+    background: var(--border2);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .pct-fill-mini {
+    height: 100%;
+    border-radius: 2px;
+    background: var(--blue);
+  }
+
+  /* ── LEGEND ── */
+  .legend {
+    position: absolute;
+    bottom: 28px;
+    left: 16px;
+    z-index: 800;
+    background: var(--panel);
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    padding: 12px 14px;
+    min-width: 160px;
+    backdrop-filter: blur(8px);
+  }
+
+  .legend-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-size: 11px;
+    color: var(--text-mid);
+    margin-bottom: 6px;
+  }
+  .legend-item:last-child { margin-bottom: 0; }
+
+  .legend-swatch {
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+  .sw-signed   { background: rgba(0,230,118,0.5); border: 1.5px solid rgba(0,230,118,0.85); }
+  .sw-unsigned { background: rgba(100,116,139,0.3); border: 1.5px solid rgba(148,163,184,0.5); }
+
+  /* ── LOADING ── */
+  .loading-overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    z-index: 9999;
+    transition: opacity 0.35s ease;
+  }
+  .loading-overlay.hidden { opacity: 0; pointer-events: none; }
+
+  .spinner {
+    width: 32px;
+    height: 32px;
+    border: 2px solid var(--border2);
+    border-top-color: var(--green);
+    border-radius: 50%;
+    animation: spin 0.75s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .loading-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 0.08em;
+  }
+
+  .loading-brand {
+    font-family: 'Syne', sans-serif;
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    color: var(--text);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  /* ── ERROR ── */
+  .error-toast {
+    display: none;
+    position: fixed;
+    top: 72px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(255,82,82,0.12);
+    border: 1px solid rgba(255,82,82,0.35);
+    color: #ff8a80;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    padding: 9px 18px;
+    border-radius: 5px;
+    z-index: 2000;
+    max-width: 520px;
+    text-align: center;
+    backdrop-filter: blur(8px);
+  }
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-brand">DSFP</div>
+  <div class="spinner"></div>
+  <div class="loading-label" id="loadingMsg">Loading petition data…</div>
+</div>
+
+<div class="error-toast" id="errorToast"></div>
+
+<header>
+  <!-- Brand -->
+  <div class="brand">
+    <div class="brand-name">DSFP</div>
+    <div class="brand-sub">Petition Tracker · BID Renewal</div>
+  </div>
+
+  <!-- Center: 30% threshold bar -->
+  <div class="threshold-track">
+    <div class="threshold-labels">
+      <div>
+        <span class="threshold-pct" id="pctDisplay">0.00%<span>of weighted total signed</span></span>
+      </div>
+      <div class="threshold-remaining" id="remainingLabel">— remaining to 30% threshold</div>
+    </div>
+    <div class="bar-track">
+      <div class="bar-fill" id="barFill" style="width:0%"></div>
+      <div class="bar-marker"></div>
+    </div>
+  </div>
+
+  <!-- Right: stats + controls -->
+  <div class="header-right">
+    <div class="stat-pill">
+      <span class="stat-num green" id="statSigned">—</span>
+      <span class="stat-lbl">Signed</span>
+    </div>
+    <div class="stat-pill">
+      <span class="stat-num" id="statTotal">—</span>
+      <span class="stat-lbl">Parcels</span>
+    </div>
+    <div class="divider"></div>
+    <div>
+      <div class="live-row">
+        <div class="dot" id="statusDot"></div>
+        <span class="live-text" id="statusText">Loading…</span>
+      </div>
+    </div>
+    <button class="refresh-btn" onclick="loadData()">↻ Refresh</button>
+  </div>
+</header>
+
+<div id="map"></div>
+
+<div class="legend">
+  <div class="legend-title">Petition Status</div>
+  <div class="legend-item"><div class="legend-swatch sw-signed"></div>Signed (Yes)</div>
+  <div class="legend-item"><div class="legend-swatch sw-unsigned"></div>Not yet signed</div>
+</div>
+
+<script>
+// ── CONFIG ───────────────────────────────────────────────────────────────────
+const GEOJSON_URL  = "https://raw.githubusercontent.com/downtownsfpartnership/dsfp-petition-map/main/MAP_3_19_Renewal_Expansion.geojson";
+const SHEET_CSV    = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTdt7C19LESnicFSoaMqgBNNNc37yCxxTVxG-hehWBINREGx2Yh8Mgp63bBSDqyYFKh3U0gxOXz8xKV/pub?gid=1106530303&single=true&output=csv";
+const BLKLOT_GEO   = "blklot";
+const BLKLOT_SHT   = "blklot";
+const STATUS_COL   = "Petition Tracking";
+const PCT_COL      = "Total Percentage";
+const THRESHOLD    = 0.30;
+
+// ── MAP INIT ─────────────────────────────────────────────────────────────────
+const map = L.map('map', { zoomControl: true, preferCanvas: true });
+
+// Stadia Alidade Smooth Dark — shows water, parks, piers clearly
+L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png', {
+  attribution: '© Stadia Maps © OpenMapTiles © OpenStreetMap',
+  maxZoom: 20
+}).addTo(map);
+
+let geojsonLayer = null;
+
+// ── HELPERS ──────────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+
+function setStatus(state, msg) {
+  $('statusDot').className = 'dot ' + state;
+  $('statusText').textContent = msg;
+}
+
+function showError(msg) {
+  const el = $('errorToast');
+  el.textContent = msg;
+  el.style.display = 'block';
+  setTimeout(() => el.style.display = 'none', 7000);
+}
+
+function hideLoading() {
+  $('loadingOverlay').classList.add('hidden');
+}
+
+function ballotClass(val) {
+  if (!val || val === '—') return 'ballot-undecided';
+  const v = val.toLowerCase();
+  if (v.includes('likely supportive') || v === 'yes') return 'ballot-supportive';
+  if (v.includes('not supportive') || v.includes('likely not')) return 'ballot-not';
+  if (v.includes('city')) return 'ballot-city';
+  return 'ballot-undecided';
+}
+
+function updateStats(signedCount, totalCount, signedPct) {
+  $('statSigned').textContent = signedCount.toLocaleString();
+  $('statTotal').textContent  = totalCount.toLocaleString();
+
+  const pct = signedPct * 100;
+  const barW = Math.min(pct / THRESHOLD * 100, 100); // fill relative to 30% target
+
+  $('pctDisplay').innerHTML = `${pct.toFixed(2)}%<span> of weighted total signed</span>`;
+  $('barFill').style.width = barW + '%';
+  $('barFill').className = 'bar-fill' + (pct >= THRESHOLD * 100 ? ' over' : '');
+
+  if (pct >= THRESHOLD * 100) {
+    $('remainingLabel').textContent = '✓ 30% threshold reached';
+    $('remainingLabel').className = 'threshold-remaining achieved';
+  } else {
+    const rem = ((THRESHOLD - signedPct) * 100).toFixed(2);
+    $('remainingLabel').textContent = `${rem}% remaining to 30% threshold`;
+    $('remainingLabel').className = 'threshold-remaining';
+  }
+}
+
+// ── PARSE CSV ─────────────────────────────────────────────────────────────────
+function parseCSV(text) {
+  const rows = [];
+  const lines = text.trim().split('\n');
+  for (const line of lines) {
+    const cols = [];
+    let cur = '', inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"') { inQ = !inQ; }
+      else if (c === ',' && !inQ) { cols.push(cur.trim()); cur = ''; }
+      else { cur += c; }
+    }
+    cols.push(cur.trim());
+    rows.push(cols);
+  }
+  return rows;
+}
+
+// ── FETCH SHEET ───────────────────────────────────────────────────────────────
+async function fetchSheetData() {
+  const res = await fetch(SHEET_CSV);
+  if (!res.ok) throw new Error(`Sheet fetch failed: ${res.status}`);
+  const text = await res.text();
+  const rows = parseCSV(text);
+  if (rows.length < 2) throw new Error('Sheet appears empty');
+
+  const headers = rows[0].map(h => h.replace(/^"|"$/g, '').trim());
+  const idx = k => headers.findIndex(h => h.toLowerCase() === k.toLowerCase());
+
+  const blklotIdx  = idx(BLKLOT_SHT);
+  const statusIdx  = idx(STATUS_COL);
+  const pctIdx     = idx(PCT_COL);
+
+  if (blklotIdx < 0) throw new Error(`"${BLKLOT_SHT}" column not found. Headers: ${headers.join(', ')}`);
+  if (statusIdx < 0) throw new Error(`"${STATUS_COL}" column not found. Headers: ${headers.join(', ')}`);
+
+  const lookup = {};
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    const id  = (row[blklotIdx] || '').replace(/^"|"$/g, '').trim();
+    if (!id) continue;
+    lookup[id] = {
+      status: (row[statusIdx] || '').replace(/^"|"$/g, '').trim(),
+      pct:    pctIdx >= 0 ? parseFloat((row[pctIdx] || '0').replace(/^"|"$/g, '')) || 0 : 0
+    };
+  }
+  return lookup;
+}
+
+// ── FETCH GEOJSON ─────────────────────────────────────────────────────────────
+async function fetchGeoJSON() {
+  const res = await fetch(GEOJSON_URL);
+  if (!res.ok) throw new Error(`GeoJSON fetch failed: ${res.status}`);
+  return res.json();
+}
+
+// ── RENDER ────────────────────────────────────────────────────────────────────
+function renderMap(geojson, lookup) {
+  if (geojsonLayer) map.removeLayer(geojsonLayer);
+
+  let signedCount = 0, totalCount = 0, signedPct = 0;
+
+  geojsonLayer = L.geoJSON(geojson, {
+    style: feature => {
+      const id       = String(feature.properties?.[BLKLOT_GEO] || '').trim();
+      const rec      = lookup[id];
+      const rawSt    = rec?.status || feature.properties?.['Petition Tracking'] || '';
+      const isSigned = rawSt.trim().toLowerCase() === 'yes';
+      return isSigned ? {
+        fillColor:   '#00e676',
+        fillOpacity: 0.50,
+        color:       '#00e676',
+        weight:      1.5,
+        opacity:     0.9
+      } : {
+        fillColor:   '#3a4460',
+        fillOpacity: 0.35,
+        color:       '#5a6480',
+        weight:      0.7,
+        opacity:     0.7
+      };
+    },
+    onEachFeature: (feature, layer) => {
+      totalCount++;
+      const id       = String(feature.properties?.[BLKLOT_GEO] || '').trim();
+      const rec      = lookup[id];
+      const rawSt    = rec?.status || feature.properties?.['Petition Tracking'] || '';
+      const isSigned = rawSt.trim().toLowerCase() === 'yes';
+
+      // Use Total Percentage from GeoJSON (most complete source)
+      const rawPct   = parseFloat(feature.properties?.['Total Percentage'] || rec?.pct || 0);
+      const pctDisp  = (rawPct * 100).toFixed(4) + '%';
+
+      if (isSigned) {
+        signedCount++;
+        signedPct += rawPct;
+      }
+
+      const address   = (feature.properties?.['Site Address'] || '').trim() || '—';
+      const ballot    = (feature.properties?.['2026 Ballot Vote'] || '—').trim();
+      const bClass    = ballotClass(ballot);
+
+      const statusBadge = isSigned
+        ? `<span class="badge badge-yes">✓ Signed</span>`
+        : `<span class="badge badge-no">Not signed</span>`;
+
+      const pctBarW = Math.min(rawPct / 0.01 * 100, 100); // scale so 1% = full bar
+
+      layer.bindPopup(`
+        <div class="popup-inner">
+          <div class="popup-blklot">Parcel · ${id}</div>
+          <div class="popup-address">${address}</div>
+          <div class="popup-grid">
+            <span class="pg-key">Petition</span><span class="pg-val">${statusBadge}</span>
+            <span class="pg-key">2026 Ballot</span><span class="pg-val"><span class="badge-ballot ${bClass}">${ballot}</span></span>
+            <span class="pg-key">Weight</span><span class="pg-val">${pctDisp}</span>
+          </div>
+          <div class="pct-bar-mini">
+            <div class="pct-label-mini"><span>Parcel weight</span><span>${pctDisp}</span></div>
+            <div class="pct-track-mini"><div class="pct-fill-mini" style="width:${Math.min(rawPct*10000,100)}%"></div></div>
+          </div>
+        </div>
+      `, { maxWidth: 280 });
+
+      layer.on('mouseover', function() {
+        this.setStyle({ fillOpacity: isSigned ? 0.75 : 0.55, weight: isSigned ? 2 : 1.2 });
+      });
+      layer.on('mouseout', function() {
+        geojsonLayer.resetStyle(this);
+      });
+    }
+  }).addTo(map);
+
+  map.fitBounds(geojsonLayer.getBounds(), { padding: [28, 28] });
+  updateStats(signedCount, totalCount, signedPct);
+
+  const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  setStatus('live', `Synced ${now}`);
+}
+
+// ── LOAD ──────────────────────────────────────────────────────────────────────
+async function loadData() {
+  setStatus('', 'Loading…');
+  $('loadingOverlay').classList.remove('hidden');
+  $('loadingMsg').textContent = 'Fetching parcels & petition data…';
+
+  try {
+    const [geojson, lookup] = await Promise.all([fetchGeoJSON(), fetchSheetData()]);
+    $('loadingMsg').textContent = 'Rendering map…';
+    renderMap(geojson, lookup);
+    hideLoading();
+  } catch (err) {
+    hideLoading();
+    setStatus('err', 'Load failed');
+    showError('Error: ' + err.message);
+    console.error(err);
+  }
+}
+
+loadData();
+</script>
+</body>
+</html>
