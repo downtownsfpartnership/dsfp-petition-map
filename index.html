@@ -6,9 +6,15 @@
 <title>DSFP Petition Tracking Map</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
+  @font-face {
+    font-family: 'Quasimoda';
+    src: url('https://raw.githubusercontent.com/downtownsfpartnership/dsfp-petition-map/main/Quasimoda-Medium.woff2') format('woff2');
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+  }
+
   :root {
     --bg: #0f1117;
     --surface: #181c27;
@@ -17,6 +23,8 @@
     --text-muted: #6b7280;
     --green: #22c55e;
     --green-dim: rgba(34,197,94,0.15);
+    --red: #ef4444;
+    --red-dim: rgba(239,68,68,0.15);
     --amber: #f59e0b;
     --blue-accent: #3b82f6;
     --parcel-default: rgba(100, 116, 139, 0.35);
@@ -28,7 +36,7 @@
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
   body {
-    font-family: 'DM Sans', sans-serif;
+    font-family: 'Quasimoda', 'DM Sans', sans-serif;
     background: var(--bg);
     color: var(--text);
     height: 100vh;
@@ -56,14 +64,14 @@
 
   h1 {
     font-size: 14px;
-    font-weight: 600;
+    font-weight: 500;
     letter-spacing: 0.04em;
     text-transform: uppercase;
     color: var(--text);
   }
 
   .subtitle {
-    font-family: 'DM Mono', monospace;
+    font-family: 'Quasimoda', monospace;
     font-size: 11px;
     color: var(--text-muted);
   }
@@ -81,7 +89,7 @@
   }
 
   .stat-value {
-    font-family: 'DM Mono', monospace;
+    font-family: 'Quasimoda', monospace;
     font-size: 18px;
     font-weight: 500;
     line-height: 1;
@@ -120,7 +128,7 @@
   }
 
   .progress-label {
-    font-family: 'DM Mono', monospace;
+    font-family: 'Quasimoda', monospace;
     font-size: 10px;
     color: var(--text-muted);
     display: flex;
@@ -145,7 +153,7 @@
   }
 
   .status-text {
-    font-family: 'DM Mono', monospace;
+    font-family: 'Quasimoda', monospace;
     font-size: 11px;
     color: var(--text-muted);
   }
@@ -155,7 +163,6 @@
     width: 100%;
   }
 
-  /* Leaflet dark overrides */
   .leaflet-tile-pane { filter: none; }
   .leaflet-control-attribution { background: rgba(15,17,23,0.85) !important; color: #4b5563 !important; font-size: 9px !important; }
   .leaflet-control-attribution a { color: #6b7280 !important; }
@@ -166,20 +173,19 @@
   }
   .leaflet-control-zoom a:hover { background: var(--border) !important; }
 
-  /* Popup */
   .leaflet-popup-content-wrapper {
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 6px;
     box-shadow: 0 8px 32px rgba(0,0,0,0.5);
     color: var(--text);
-    font-family: 'DM Sans', sans-serif;
+    font-family: 'Quasimoda', 'DM Sans', sans-serif;
   }
   .leaflet-popup-tip { background: var(--surface); }
   .leaflet-popup-content { margin: 14px 16px; min-width: 200px; }
 
   .popup-header {
-    font-family: 'DM Mono', monospace;
+    font-family: 'Quasimoda', monospace;
     font-size: 11px;
     color: var(--text-muted);
     text-transform: uppercase;
@@ -204,13 +210,14 @@
     display: inline-block;
     padding: 2px 8px;
     border-radius: 3px;
-    font-family: 'DM Mono', monospace;
+    font-family: 'Quasimoda', monospace;
     font-size: 10px;
     font-weight: 500;
     text-transform: uppercase;
     letter-spacing: 0.05em;
   }
   .badge-yes { background: var(--green-dim); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+  .badge-no-explicit { background: var(--red-dim); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
   .badge-no { background: rgba(100,116,139,0.15); color: var(--text-muted); border: 1px solid var(--border); }
 
   .loading-overlay {
@@ -228,7 +235,7 @@
   .loading-overlay.hidden { opacity: 0; pointer-events: none; }
 
   .loader-label {
-    font-family: 'DM Mono', monospace;
+    font-family: 'Quasimoda', monospace;
     font-size: 12px;
     color: var(--text-muted);
   }
@@ -252,7 +259,7 @@
     background: rgba(239,68,68,0.15);
     border: 1px solid rgba(239,68,68,0.4);
     color: #fca5a5;
-    font-family: 'DM Mono', monospace;
+    font-family: 'Quasimoda', monospace;
     font-size: 11px;
     padding: 8px 16px;
     border-radius: 4px;
@@ -273,7 +280,7 @@
     font-size: 11px;
   }
   .legend-title {
-    font-family: 'DM Mono', monospace;
+    font-family: 'Quasimoda', monospace;
     font-size: 10px;
     color: var(--text-muted);
     text-transform: uppercase;
@@ -294,14 +301,15 @@
     border-radius: 2px;
     flex-shrink: 0;
   }
-  .swatch-signed { background: var(--parcel-signed); border: 1.5px solid var(--parcel-border-signed); }
-  .swatch-unsigned { background: rgba(245,158,11,0.25); border: 1.5px solid #d97706; }
+  .swatch-signed  { background: rgba(34,197,94,0.5);  border: 1.5px solid #16a34a; }
+  .swatch-no      { background: rgba(239,68,68,0.4);  border: 1.5px solid #ef4444; }
+  .swatch-unsigned{ background: rgba(245,158,11,0.25); border: 1.5px solid #d97706; }
 
   .refresh-btn {
     background: var(--border);
     border: 1px solid var(--border);
     color: var(--text-muted);
-    font-family: 'DM Mono', monospace;
+    font-family: 'Quasimoda', monospace;
     font-size: 10px;
     padding: 5px 10px;
     border-radius: 4px;
@@ -362,6 +370,7 @@
 <div class="legend">
   <div class="legend-title">Petition Status</div>
   <div class="legend-item"><div class="legend-swatch swatch-signed"></div>Signed (Yes)</div>
+  <div class="legend-item"><div class="legend-swatch swatch-no"></div>Declined (No)</div>
   <div class="legend-item"><div class="legend-swatch swatch-unsigned"></div>Not yet signed</div>
 </div>
 
@@ -370,9 +379,9 @@
 const GEOJSON_URL = "https://raw.githubusercontent.com/downtownsfpartnership/dsfp-petition-map/main/MAP_3_19_Renewal_Expansion.geojson";
 const SHEET_ID    = "1fN4u7AA5QQQNs5p4Zi9N2mJwpF3hhLTYVKlA3Q1k2zY";
 const SHEET_GID   = "1106530303";
-const BLKLOT_GEO  = "blklot";   // property name in GeoJSON
-const BLKLOT_SHT  = "blklot";   // column header in Sheet
-const STATUS_COL  = "Petition Tracking"; // "Yes" or blank
+const BLKLOT_GEO  = "blklot";
+const BLKLOT_SHT  = "blklot";
+const STATUS_COL  = "Petition Tracking";
 
 // ── MAP INIT ─────────────────────────────────────────────────────────────────
 const map = L.map('map', { zoomControl: true });
@@ -381,8 +390,6 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
     subdomains: 'abcd',
     maxZoom: 20
   }).addTo(map);
-
-// Labels layer on top
 
 let geojsonLayer = null;
 
@@ -415,11 +422,9 @@ function updateStats(signed, total, signedPct) {
   document.getElementById('statTotal').textContent  = total.toLocaleString();
   const pctOfThreshold = Math.min((signedPct / 0.30) * 100, 100);
   const pctDisplay = (signedPct * 100).toFixed(2) + '%';
-  const thresholdDisplay = (pctOfThreshold).toFixed(1) + '% of 30%';
   document.getElementById('progressFill').style.width = pctOfThreshold + '%';
   document.getElementById('statPct').textContent = (signedPct * 100).toFixed(2) + '%';
   document.getElementById('progressPct').textContent  = pctDisplay + ' signed';
-  document.getElementById('statSigned').title = thresholdDisplay;
 }
 
 // ── FETCH SHEET CSV ──────────────────────────────────────────────────────────
@@ -430,7 +435,6 @@ async function fetchSheetData() {
   const text = await res.text();
 
   const rows = text.trim().split('\n').map(r => {
-    // Handle quoted CSV fields
     const cols = [];
     let cur = '', inQ = false;
     for (let i = 0; i < r.length; i++) {
@@ -450,8 +454,8 @@ async function fetchSheetData() {
   const statusIdx  = headers.findIndex(h => h.toLowerCase() === STATUS_COL.toLowerCase());
   const addressIdx = headers.findIndex(h => h.toLowerCase().includes('address'));
 
-  if (blklotIdx === -1) throw new Error(`Column "${BLKLOT_SHT}" not found in sheet. Headers: ${headers.join(', ')}`);
-  if (statusIdx === -1) throw new Error(`Column "${STATUS_COL}" not found in sheet. Headers: ${headers.join(', ')}`);
+  if (blklotIdx === -1) throw new Error(`Column "${BLKLOT_SHT}" not found. Headers: ${headers.join(', ')}`);
+  if (statusIdx === -1) throw new Error(`Column "${STATUS_COL}" not found. Headers: ${headers.join(', ')}`);
 
   const lookup = {};
   for (let i = 1; i < rows.length; i++) {
@@ -473,6 +477,22 @@ async function fetchGeoJSON() {
   return res.json();
 }
 
+// ── PARCEL STATUS HELPER ─────────────────────────────────────────────────────
+function getStatus(feature, lookup) {
+  const id = String(feature.properties?.[BLKLOT_GEO] || '').trim();
+  const rec = lookup[id];
+  const raw = (rec?.status || feature.properties?.['Petition Tracking'] || '').trim().toLowerCase();
+  if (raw === 'yes') return 'yes';
+  if (raw === 'no')  return 'no';
+  return 'pending';
+}
+
+function getParcelStyle(status) {
+  if (status === 'yes') return { fillColor: '#16a34a', fillOpacity: 0.5, color: '#16a34a', weight: 2, opacity: 1 };
+  if (status === 'no')  return { fillColor: '#ef4444', fillOpacity: 0.4, color: '#ef4444', weight: 2, opacity: 1 };
+  return                       { fillColor: '#f59e0b', fillOpacity: 0.25, color: '#d97706', weight: 1, opacity: 0.8 };
+}
+
 // ── RENDER MAP ───────────────────────────────────────────────────────────────
 function renderMap(geojson, lookup) {
   if (geojsonLayer) { map.removeLayer(geojsonLayer); }
@@ -480,37 +500,26 @@ function renderMap(geojson, lookup) {
   let signed = 0, total = 0, signedPct = 0;
 
   geojsonLayer = L.geoJSON(geojson, {
-    style: feature => {
-      const id  = String(feature.properties?.[BLKLOT_GEO] || '').trim();
-      const rec = lookup[id];
-      // Sheet value takes priority; fall back to GeoJSON value
-      const rawStatus = rec?.status || feature.properties?.['Petition Tracking'] || '';
-      const isSigned = rawStatus.trim().toLowerCase() === 'yes';
-      return {
-        fillColor:   isSigned ? '#16a34a' : '#f59e0b',
-        fillOpacity: isSigned ? 0.5 : 0.25,
-        color:       isSigned ? '#16a34a' : '#d97706',
-        weight:      isSigned ? 2 : 1,
-        opacity:     isSigned ? 1 : 0.8
-      };
-    },
+    style: feature => getParcelStyle(getStatus(feature, lookup)),
     onEachFeature: (feature, layer) => {
       total++;
-      const id  = String(feature.properties?.[BLKLOT_GEO] || '').trim();
-      const rec = lookup[id];
-      const rawStatus = rec?.status || feature.properties?.['Petition Tracking'] || '';
-      const isSigned = rawStatus.trim().toLowerCase() === 'yes';
-      if (isSigned) {
+      const id     = String(feature.properties?.[BLKLOT_GEO] || '').trim();
+      const rec    = lookup[id];
+      const status = getStatus(feature, lookup);
+
+      if (status === 'yes') {
         signed++;
         const pctVal = parseFloat(feature.properties?.['Total Percentage'] || 0);
         signedPct += pctVal;
       }
 
-      const address   = feature.properties?.['Site Address']?.trim() || rec?.address || '—';
+      const address    = feature.properties?.['Site Address']?.trim() || rec?.address || '—';
       const ballotVote = feature.properties?.['2026 Ballot Vote'] || '—';
-      const statusBadge = isSigned
-        ? `<span class="badge badge-yes">Yes</span>`
-        : `<span class="badge badge-no">Not signed</span>`;
+
+      const statusBadge =
+        status === 'yes' ? `<span class="badge badge-yes">Yes</span>` :
+        status === 'no'  ? `<span class="badge badge-no-explicit">No</span>` :
+                           `<span class="badge badge-no">Not signed</span>`;
 
       layer.bindPopup(`
         <div class="popup-header">${id}</div>
@@ -520,7 +529,8 @@ function renderMap(geojson, lookup) {
       `, { maxWidth: 280 });
 
       layer.on('mouseover', function() {
-        this.setStyle({ fillOpacity: isSigned ? 0.65 : 0.35, weight: 2.5 });
+        const s = getParcelStyle(status);
+        this.setStyle({ ...s, fillOpacity: s.fillOpacity + 0.15, weight: 2.5 });
       });
       layer.on('mouseout', function() {
         geojsonLayer.resetStyle(this);
