@@ -417,13 +417,15 @@ function hideLoading() {
   document.getElementById('loadingOverlay').classList.add('hidden');
 }
 
+// signedPct is a direct percentage value (e.g. 15.41 means 15.41%)
+// threshold is 30 (percent), so progress = signedPct / 30
 function updateStats(signed, total, signedPct) {
   document.getElementById('statSigned').textContent = signed.toLocaleString();
   document.getElementById('statTotal').textContent  = total.toLocaleString();
-  const pctOfThreshold = Math.min((signedPct / 0.30) * 100, 100);
-  const pctDisplay = (signedPct * 100).toFixed(2) + '%';
+  const pctOfThreshold = Math.min((signedPct / 30) * 100, 100);
+  const pctDisplay = signedPct.toFixed(2) + '%';
   document.getElementById('progressFill').style.width = pctOfThreshold + '%';
-  document.getElementById('statPct').textContent = (signedPct * 100).toFixed(2) + '%';
+  document.getElementById('statPct').textContent = pctDisplay;
   document.getElementById('progressPct').textContent  = pctDisplay + ' signed';
 }
 
@@ -453,29 +455,47 @@ async function fetchSheetData() {
   const blklotIdx   = headers.findIndex(h => h.toLowerCase() === BLKLOT_SHT.toLowerCase());
   const statusIdx   = headers.findIndex(h => h.toLowerCase() === STATUS_COL.toLowerCase());
   const addressIdx  = headers.findIndex(h => h.toLowerCase().includes('address'));
-  // ── FIX: find Total Percentage column in the sheet ──────────────────────
   const totalPctIdx = headers.findIndex(h => h.toLowerCase().includes('total percentage'));
 
   if (blklotIdx === -1) throw new Error(`Column "${BLKLOT_SHT}" not found. Headers: ${headers.join(', ')}`);
   if (statusIdx === -1) throw new Error(`Column "${STATUS_COL}" not found. Headers: ${headers.join(', ')}`);
 
   const lookup = {};
+
+  // ── Compute signedPct directly from the sheet here, with no GeoJSON dependency.
+  // This is the single source of truth for the percentage.
+  let signedPctFromSheet = 0;
+  let signedCountFromSheet = 0;
+
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
     const id  = row[blklotIdx]?.replace(/^"|"$/g, '').trim();
     if (!id) continue;
 
-    // ── FIX: store totalPct from sheet, stripping any % sign ────────────
+    const status = (row[statusIdx] || '').replace(/^"|"$/g, '').trim().toLowerCase();
+
     const rawPct = totalPctIdx >= 0
       ? (row[totalPctIdx] || '').replace(/^"|"$/g, '').replace('%', '').trim()
       : '0';
+    const totalPct = parseFloat(rawPct) || 0;
+
+    // Sum percentage for yes rows directly from sheet
+    if (status === 'yes') {
+      signedPctFromSheet += totalPct;
+      signedCountFromSheet++;
+    }
 
     lookup[id] = {
       status:   (row[statusIdx] || '').replace(/^"|"$/g, '').trim(),
       address:  addressIdx >= 0 ? (row[addressIdx] || '').replace(/^"|"$/g, '').trim() : '',
-      totalPct: parseFloat(rawPct) || 0
+      totalPct
     };
   }
+
+  // Attach the sheet-computed totals so renderMap can use them directly
+  lookup.__sheetSignedPct   = signedPctFromSheet;
+  lookup.__sheetSignedCount = signedCountFromSheet;
+
   return lookup;
 }
 
@@ -506,7 +526,11 @@ function getParcelStyle(status) {
 function renderMap(geojson, lookup) {
   if (geojsonLayer) { map.removeLayer(geojsonLayer); }
 
-  let signed = 0, total = 0, signedPct = 0;
+  let total = 0;
+
+  // Use the sheet-computed values directly — no GeoJSON matching needed for the percentage
+  const signedPct   = lookup.__sheetSignedPct;
+  const signedCount = lookup.__sheetSignedCount;
 
   geojsonLayer = L.geoJSON(geojson, {
     style: feature => getParcelStyle(getStatus(feature, lookup)),
@@ -515,13 +539,6 @@ function renderMap(geojson, lookup) {
       const id     = String(feature.properties?.[BLKLOT_GEO] || '').trim();
       const rec    = lookup[id];
       const status = getStatus(feature, lookup);
-
-      if (status === 'yes') {
-        signed++;
-        // ── FIX: use live sheet value, not stale GeoJSON property ───────
-        const pctVal = rec?.totalPct ?? 0;
-        signedPct += pctVal;
-      }
 
       const address    = feature.properties?.['Site Address']?.trim() || rec?.address || '—';
       const ballotVote = feature.properties?.['2026 Ballot Vote'] || '—';
@@ -549,7 +566,7 @@ function renderMap(geojson, lookup) {
   }).addTo(map);
 
   map.fitBounds(geojsonLayer.getBounds(), { padding: [24, 24] });
-  updateStats(signed, total, signedPct);
+  updateStats(signedCount, total, signedPct);
 
   const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   setStatus('live', `Updated ${now}`);
