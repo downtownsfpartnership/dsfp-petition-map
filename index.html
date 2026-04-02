@@ -564,7 +564,11 @@ function renderMap(geojson, lookup) {
     boundaryKeys.set(i, coords);
   });
 
-  
+  // TARGETED DEBUG
+  const ids345 = ['0261018','0261019','0261020'];
+  ids345.forEach(id => console.log(id, '→ lookup:', lookup[id]?.status, '| rec exists:', !!lookup[id]));
+  const coords345 = JSON.stringify(geojson.features.find(f => geoVal(f.properties?.blklot) === '0261018')?.geometry?.coordinates);
+  console.log('345 boundary statuses:', boundaryStatuses[coords345]);
   let total = 0;
 
   // Use the sheet-computed values directly — no GeoJSON matching needed for the percentage
