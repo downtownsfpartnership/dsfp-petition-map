@@ -562,7 +562,15 @@ function renderMap(geojson, lookup) {
     }
     boundaryKeys.set(i, coords);
   });
-  
+  // DEBUG blklot format check — remove after
+  const sample345 = geojson.features.filter(f => 
+    (f.properties?.['Site Address'] || '').includes('345 CALIFORNIA') ||
+    (f.properties?.['Site Address'] || '').includes('345 California')
+  );
+  sample345.forEach(f => {
+    const id = String(f.properties?.[BLKLOT_GEO] || '').trim();
+    console.log('GeoJSON blklot raw:', JSON.stringify(id), '| lookup hit:', !!lookup[id], '| status:', lookup[id]?.status);
+  });
   Object.entries(boundaryStatuses).forEach(([coords, statuses]) => {
     if (statuses.includes('yes') && !statuses.every(s => s === 'yes')) {
       const ids = geojson.features
