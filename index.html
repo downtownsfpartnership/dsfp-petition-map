@@ -562,6 +562,16 @@ function renderMap(geojson, lookup) {
     }
     boundaryKeys.set(i, coords);
   });
+  
+  Object.entries(boundaryStatuses).forEach(([coords, statuses]) => {
+    if (statuses.includes('yes') && !statuses.every(s => s === 'yes')) {
+      const ids = geojson.features
+        .filter(f => JSON.stringify(f.geometry?.coordinates) === coords)
+        .map(f => f.properties?.[BLKLOT_GEO]);
+      console.log('PARTIAL boundary blklots:', ids, '→ statuses:', statuses);
+    }
+  });
+  
   let total = 0;
 
   // Use the sheet-computed values directly — no GeoJSON matching needed for the percentage
