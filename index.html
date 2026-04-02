@@ -548,14 +548,17 @@ function renderMap(geojson, lookup) {
   }
 
   const boundaryStatuses = {};
-  geojson.features.forEach(f => {
+  const boundaryKeys = new Map(); // feature index → coords key
+
+  geojson.features.forEach((f, i) => {
     const coords = JSON.stringify(f.geometry?.coordinates);
     const id = String(f.properties?.[BLKLOT_GEO] || '').trim();
     const rec = lookup[id];
-    const raw = (rec?.status || f.properties?.['Petition Tracking'] || '').trim().toLowerCase();
+    const raw = (rec?.status || f.properties?.['Petition Tracking'] || '').replace(/^"|"$/g, '').trim().toLowerCase();
     const status = raw === 'yes' ? 'yes' : raw === 'no' ? 'no' : raw === 'city property' ? 'city property' : 'pending';
     if (!boundaryStatuses[coords]) boundaryStatuses[coords] = [];
     boundaryStatuses[coords].push(status);
+    boundaryKeys.set(i, coords);
   });
   let total = 0;
 
@@ -567,10 +570,10 @@ function renderMap(geojson, lookup) {
     style: feature => {
       const coords = JSON.stringify(feature.geometry?.coordinates);
       const statuses = boundaryStatuses[coords] || [];
+      const nonPendingStatuses = statuses.filter(s => s !== 'pending');
       const hasYes = statuses.some(s => s === 'yes');
-      const allYes = statuses.every(s => s === 'yes');
-      const anyNonYes = statuses.some(s => s !== 'yes');
-      const effectiveStatus = (hasYes && anyNonYes) ? 'partial' : getStatus(feature, lookup);
+      const isPartial = statuses.length > 1 && hasYes && statuses.some(s => s !== 'yes');
+      const effectiveStatus = isPartial ? 'partial' : getStatus(feature, lookup);
       return getParcelStyle(effectiveStatus);
     },
     onEachFeature: (feature, layer) => {
