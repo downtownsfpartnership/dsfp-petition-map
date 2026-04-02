@@ -513,12 +513,14 @@ function getStatus(feature, lookup) {
   const raw = (rec?.status || feature.properties?.['Petition Tracking'] || '').trim().toLowerCase();
   if (raw === 'yes') return 'yes';
   if (raw === 'no')  return 'no';
+  if (raw === 'city property') return 'city property';
   return 'pending';
 }
 
 function getParcelStyle(status) {
   if (status === 'yes') return { fillColor: '#16a34a', fillOpacity: 0.7, color: '#16a34a', weight: 2, opacity: 1 };
   if (status === 'no')  return { fillColor: '#ef4444', fillOpacity: 0.4, color: '#ef4444', weight: 2, opacity: 1 };
+  if (status === 'city property')  return { fillColor: '#fdda0d', fillOpacity: 0.6, color: '#fdda0d', weight: 2, opacity: 1 };
   return                       { fillColor: '#f59e0b', fillOpacity: 0.15, color: '#d97706', weight: 1, opacity: 0.8 };
 }
 
@@ -546,6 +548,7 @@ function renderMap(geojson, lookup) {
       const statusBadge =
         status === 'yes' ? `<span class="badge badge-yes">Yes</span>` :
         status === 'no'  ? `<span class="badge badge-no-explicit">No</span>` :
+        status === 'city property'  ? `<span class="badge badge-no-explicit">City Property</span>` :
                            `<span class="badge badge-no">Not signed</span>`;
 
       layer.bindPopup(`
