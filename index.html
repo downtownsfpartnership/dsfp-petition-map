@@ -582,7 +582,13 @@ function renderMap(geojson, lookup) {
       const nonPendingStatuses = statuses.filter(s => s !== 'pending');
       const hasYes = statuses.some(s => s === 'yes');
       const allYes = statuses.every(s => s === 'yes');
-      const isPartial = !allYes && hasYes;
+      const FORCE_FULL_GREEN = new Set(['0261018','0261019','0261020']);
+      const FORCE_GREEN_PRIMARY = '0261018';
+      const id0 = geoVal(feature.properties?.[BLKLOT_GEO]);
+      const isPartial = !allYes && hasYes && !FORCE_FULL_GREEN.has(id0);
+      if (FORCE_FULL_GREEN.has(id0) && id0 !== FORCE_GREEN_PRIMARY) {
+        return { fillColor: 'transparent', fillOpacity: 0, color: 'transparent', weight: 0, opacity: 0 };
+      }
       const effectiveStatus = isPartial ? 'partial' : getStatus(feature, lookup);
       return getParcelStyle(effectiveStatus);
     },
